@@ -106,6 +106,13 @@ async function bootstrap(): Promise<void> {
       customerIdHeader:
         process.env.REQUEST_LOG_CUSTOMER_ID_HEADER?.trim() ||
         'x-customer-id',
+      fromRequest: (req) => {
+        console.log('fromRequest', req.headers);
+        return {
+          userId: req.headers['x-user-id'] as string || '--user-id',
+          customerId: req.headers['x-customer-id'] as string || '--customer-id',
+        };
+      },
     },
     maskFields: parseMaskFields(),
     queueMaxSize: envInt('REQUEST_LOG_QUEUE_MAX', 1000),
