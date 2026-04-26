@@ -1,0 +1,20 @@
+{
+  "name": "umenu-tradigital",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "scripts": {
+    "build": "npm run build -w @catrn-sdk/request-logging-sdk",
+    "build:request-sdk": "npm run build -w @catrn-sdk/request-logging-sdk",
+    "build:demo:nest": "npm run build -w @catrn-sdk/request-logging-sdk && npm run build -w nest-request-log-demo",
+    "demo:nest": "npm run start -w nest-request-log-demo"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
