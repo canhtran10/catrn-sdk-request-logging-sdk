@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
 import { enqueueCapture, getSdkConfig } from '../core/init-sdk';
 import type { CaptureJob } from '../types/capture-job';
+import { isCapturePathExcluded } from '../utils/capture-path-filter';
 import { maskObject, safeStringify } from '../utils/mask';
 import { resolveCaptureContext } from './resolve-capture-context';
 
@@ -17,6 +18,12 @@ export function captureMiddleware(): RequestHandler {
     try {
       const cfg = getSdkConfig();
       if (!cfg) {
+        next();
+        return;
+      }
+
+      const reqPath = req.originalUrl || req.url || '';
+      if (isCapturePathExcluded(reqPath, cfg.capture.excludePathPrefixes)) {
         next();
         return;
       }

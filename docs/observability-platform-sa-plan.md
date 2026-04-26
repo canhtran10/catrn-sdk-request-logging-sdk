@@ -1,4 +1,4 @@
-# Solution architecture: distributed logging platform (Umenu Tradigital)
+# Solution architecture: distributed logging platform (Logs)
 
 This document is the solution-architecture plan derived from [requirement.md](requirement.md). It is the project copy of the planning artifact (queue, separate PostgreSQL, Azure Blob, NestJS SDK, log viewer UI).
 

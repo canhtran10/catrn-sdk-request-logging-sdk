@@ -1,4 +1,4 @@
-# Umenu Tradigital — observability platform (code)
+# Logs — observability platform (code)
 
 Monorepo aligned with [docs/observability-platform-sa-plan.md](docs/observability-platform-sa-plan.md).
 

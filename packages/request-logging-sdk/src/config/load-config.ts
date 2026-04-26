@@ -35,6 +35,29 @@ function envInt(key: string, def: number): number {
 }
 
 /**
+ * @param raw - Comma-separated path prefixes (may be empty string to mean "none")
+ */
+function parseCommaSeparatedPrefixes(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Default: skip `/request-logs` (documented activity UI mount). Override with
+ * `REQUEST_LOG_EXCLUDE_PATH_PREFIXES` (comma-separated); empty env value → no excludes.
+ */
+function defaultExcludePathPrefixesFromEnv(): string[] {
+  if (process.env.REQUEST_LOG_EXCLUDE_PATH_PREFIXES !== undefined) {
+    return parseCommaSeparatedPrefixes(
+      process.env.REQUEST_LOG_EXCLUDE_PATH_PREFIXES,
+    );
+  }
+  return ['/request-logs'];
+}
+
+/**
  * @param init - initSDK() overrides (highest precedence)
  * @returns Fully merged SdkConfig
  */
@@ -76,6 +99,7 @@ export function loadConfig(init?: SdkInitInput): SdkConfig {
       headers: envBool('REQUEST_LOG_CAPTURE_HEADERS', true),
       body: envBool('REQUEST_LOG_CAPTURE_BODY', true),
       maxBodySize: envInt('REQUEST_LOG_MAX_BODY', 65536),
+      excludePathPrefixes: defaultExcludePathPrefixesFromEnv(),
     },
     captureContext: buildCaptureContextFromEnv(),
     maskFields: ['password', 'token', 'authorization', 'cookie'],
@@ -138,6 +162,10 @@ export function loadConfig(init?: SdkInitInput): SdkConfig {
       headers: init.capture?.headers ?? defaults.capture.headers,
       body: init.capture?.body ?? defaults.capture.body,
       maxBodySize: init.capture?.maxBodySize ?? defaults.capture.maxBodySize,
+      excludePathPrefixes:
+        init.capture?.excludePathPrefixes !== undefined
+          ? [...init.capture.excludePathPrefixes]
+          : defaults.capture.excludePathPrefixes,
     },
     captureContext: mergeCaptureContext(
       defaults.captureContext,

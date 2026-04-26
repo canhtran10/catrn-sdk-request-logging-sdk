@@ -6,6 +6,8 @@ This package complements the distributed Nest + Bull design in [../../README.md]
 
 **Postgres tables:** with the default settings, **`await initSDK(...)`** creates or updates the log table and indexes (`requests` or `{prefix}_requests`) before the background worker runs. The host app does not need a separate migration step for that table unless you set **`postgres.autoMigrate`** / **`REQUEST_LOG_AUTO_MIGRATE`** to `false`.
 
+**Capture scope:** by default, **`captureMiddleware`** does **not** log requests under **`/request-logs`** (the activity UI mount from this package). Set **`REQUEST_LOG_EXCLUDE_PATH_PREFIXES`** (comma-separated) or **`initSDK({ capture: { excludePathPrefixes: [...] } })`** to match your mounts; use an **empty** env value to log every path.
+
 ## Integration
 
 Place **`captureMiddleware` after `express.json()`** if you need parsed `req.body` logged.
@@ -45,6 +47,8 @@ await initSDK({
     headers: true,
     body: true,
     maxBodySize: 65536,
+    // default skips /request-logs; set [] to log SDK UI traffic, or ['/my-mount'] if you mount the router elsewhere
+    // excludePathPrefixes: ['/request-logs'],
   },
 });
 
@@ -73,6 +77,7 @@ app.use('/request-logs', createActivityLogsRouter());
 | `REQUEST_LOG_CAPTURE_HEADERS` | `true`/`false` |
 | `REQUEST_LOG_CAPTURE_BODY` | `true`/`false` |
 | `REQUEST_LOG_MAX_BODY` | Max captured body bytes |
+| `REQUEST_LOG_EXCLUDE_PATH_PREFIXES` | Comma-separated path prefixes **not** logged (no query string match). **Unset** → default **`/request-logs`**. Set to **empty** to disable excludes. Example: `/request-logs,/internal/health`. |
 | `REQUEST_LOG_QUEUE_MAX` | In-memory queue cap (drop oldest) |
 | `REQUEST_LOG_DB_RETRIES` | Insert retries |
 | `REQUEST_LOG_ERROR_THROTTLE_MS` | Throttle identical error logs |
@@ -84,7 +89,7 @@ app.use('/request-logs', createActivityLogsRouter());
 
 ## Activity logs UI
 
-When `activityLogsUi.enabled` is true, mount `createActivityLogsRouter()` on your Express app (e.g. `/request-logs`). Full API paths are **`{mount}/api/login`**, **`{mount}/api/list`**, etc. The bundled page builds URLs from `location.pathname` so **`/request-logs` without a trailing slash** still works (plain relative `api/login` would incorrectly hit `/api/login`).
+When `activityLogsUi.enabled` is true, mount `createActivityLogsRouter()` on your Express app (e.g. `/request-logs`). Full API paths are **`{mount}/api/login`**, **`{mount}/api/list`**, etc. The bundled page builds URLs from `location.pathname` so **`/request-logs` without a trailing slash** still works (plain relative `api/login` would incorrectly hit `/api/login`). The HTML shell loads **highlight.js** + **vs** theme from jsDelivr for JSON blocks in the detail panel (requires outbound network in the browser, or host those assets yourself if you fork the template in `activity-logs-html.ts`).
 
 It serves:
 

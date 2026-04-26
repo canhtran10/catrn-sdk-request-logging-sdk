@@ -11,6 +11,8 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Request activity logs</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/styles/vs.min.css" crossorigin="anonymous" />
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js" crossorigin="anonymous"></script>
   <style>
     /* Font ~5% smaller; form controls ~35% tighter (Pico spacing scale × 0.65) */
     html.rl-activity {
@@ -47,7 +49,7 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
       display: flex;
       flex-wrap: wrap;
       align-items: stretch;
-      gap: 0.23rem;
+      gap: 0.35rem;
       min-height: 3.25rem;
       padding: var(--pico-spacing);
       border: var(--pico-border-width) solid var(--pico-border-color);
@@ -56,25 +58,106 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
     }
     .tl-arrow {
       align-self: center;
+      flex: 0 0 auto;
       color: var(--pico-muted-color);
       font-weight: 700;
       user-select: none;
-      padding: 0 0.15rem;
+      padding: 0 0.1rem;
     }
     .tl-node {
       text-align: left;
-      max-width: 9rem;
       white-space: normal;
-      padding: 0.25rem 0.35rem;
-      font-size: 0.95em;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.92em;
+      flex: 1 1 calc(25% - 0.55rem);
+      min-width: 11.5rem;
+      max-width: calc(25% - 0.35rem);
+      box-sizing: border-box;
+      transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
     }
-    .tl-time { font-size: 0.7rem; opacity: 0.85; }
-    .tl-url { font-size: 0.76rem; margin-top: 0.15rem; word-break: break-word; }
-    .blob-pre {
-      font-size: 0.76rem;
-      max-height: 14rem;
+    @media (max-width: 720px) {
+      .tl-node {
+        flex: 1 1 calc(50% - 0.35rem);
+        max-width: calc(50% - 0.2rem);
+      }
+    }
+    .tl-time {
+      font-size: 0.72rem;
+      opacity: 0.88;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+    }
+    .tl-meta { margin-top: 0.12rem; }
+    .tl-url { font-size: 0.76rem; margin-top: 0.18rem; word-break: break-word; }
+    .tl-node.tl-st-ok {
+      color: #15803d;
+      font-weight: 700;
+      border-color: #86efac;
+    }
+    .tl-node.tl-st-ok:hover:not(.tl-node-selected) {
+      background: #dbeafe;
+    }
+    .tl-node.tl-st-bad {
+      color: #b91c1c;
+      font-weight: 700;
+      border-color: #fca5a5;
+    }
+    .tl-node.tl-st-bad:hover:not(.tl-node-selected) {
+      background: #ffedd5;
+    }
+    .tl-node.tl-st-neu {
+      font-weight: 500;
+    }
+    .tl-node.tl-node-selected {
+      background: var(--pico-primary, #2060df) !important;
+      color: #fff !important;
+      border-color: var(--pico-primary, #2060df) !important;
+    }
+    .tl-node.tl-node-selected .tl-time { opacity: 0.95; color: inherit; }
+    .rl-app-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: var(--pico-block-spacing-vertical);
+    }
+    .rl-app-head hgroup { flex: 1; min-width: 12rem; margin-bottom: 0; }
+    .rl-logout {
+      font-size: 0.78rem;
+      padding: 0.28rem 0.55rem;
+      margin: 0;
+      flex-shrink: 0;
+    }
+    .detail-pre-wrap {
+      margin: 0 0 0.75rem 0;
+      border: var(--pico-border-width) solid var(--pico-border-color);
+      border-radius: var(--pico-border-radius);
       overflow: auto;
-      margin-bottom: 0;
+      background: #f8f8f8;
+    }
+    .detail-meta-pre {
+      max-height: calc(9rem * 1.1);
+      min-height: 4rem;
+    }
+    .detail-blob-pre {
+      min-height: 9rem;
+      max-height: 22rem;
+    }
+    .detail-pre-wrap pre {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      min-height: 100%;
+    }
+    .detail-pre-wrap code.hljs {
+      display: block;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      white-space: pre;
     }
     #loginErr { color: var(--pico-color-red-500, #c62828); min-height: 1.25rem; }
     .rl-login-wrap { max-width: 28rem; margin-inline: auto; }
@@ -98,11 +181,13 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
     </div>
 
     <div id="appPanel" class="hidden">
-      <hgroup>
-        <h1>Request activity logs</h1>
-        <p><small>Project scope · blobs via short-lived SAS from server, read in browser.</small></p>
-      </hgroup>
-      <p><button type="button" id="rlLogout" class="secondary outline hidden">Sign out</button></p>
+      <div class="rl-app-head">
+        <hgroup>
+          <h1>Request activity logs</h1>
+          <p><small>Project scope · blobs via short-lived SAS from server, read in browser.</small></p>
+        </hgroup>
+        <button type="button" id="rlLogout" class="secondary outline rl-logout hidden">Sign out</button>
+      </div>
 
       <article>
         <header><strong>Filters</strong> <small>(time window ≤ 15 days)</small></header>
@@ -149,11 +234,11 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
           <p id="detailEmpty" class="secondary">Select a step on the timeline.</p>
           <div id="detailBody" class="hidden">
             <h4>Row</h4>
-            <pre id="detailMeta" class="blob-pre" style="max-height:9rem">—</pre>
+            <div class="detail-pre-wrap detail-meta-pre"><pre><code id="detailMeta" class="language-json">—</code></pre></div>
             <h4>Request body (blob)</h4>
-            <pre id="detailReq" class="blob-pre">—</pre>
+            <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailReq" class="language-json">—</code></pre></div>
             <h4>Response body (blob)</h4>
-            <pre id="detailRes" class="blob-pre">—</pre>
+            <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailRes" class="language-json">—</code></pre></div>
           </div>
         </article>
       </div>
@@ -179,6 +264,24 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
   function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g, '&amp;').split('<').join('&lt;').replace(/"/g, '&quot;');
+  }
+  /** Pretty-print JSON in a code element using highlight.js when available. */
+  function setCodeBlock(codeEl, rawText) {
+    var text = rawText == null ? '' : String(rawText);
+    codeEl.textContent = text;
+    if (typeof window.hljs === 'undefined' || !window.hljs.highlightElement) return;
+    var lang = 'plaintext';
+    var trimmed = text.trim();
+    if (trimmed.length > 0 && (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[')) {
+      try {
+        codeEl.textContent = JSON.stringify(JSON.parse(text), null, 2);
+        lang = 'json';
+      } catch (e) {
+        codeEl.textContent = text;
+      }
+    }
+    codeEl.className = 'language-' + lang;
+    try { window.hljs.highlightElement(codeEl); } catch (e2) {}
   }
   function authHeaders() {
     var t = sessionStorage.getItem(STORAGE);
@@ -245,11 +348,17 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
       }
       var n = document.createElement('button');
       n.type = 'button';
-      n.className = 'tl-node ' + (row.id === selectedId ? '' : 'secondary outline');
+      var sc = row.status_code;
+      var sn = sc == null || sc === '' ? NaN : Number(sc);
+      var stClass = 'tl-st-neu';
+      if (sn === 200) stClass = 'tl-st-ok';
+      else if (!Number.isNaN(sn) && sn > 201) stClass = 'tl-st-bad';
+      var selClass = row.id === selectedId ? 'tl-node-selected' : 'secondary outline';
+      n.className = 'tl-node ' + stClass + ' ' + selClass;
       n.setAttribute('role', 'listitem');
       n.setAttribute('aria-pressed', row.id === selectedId ? 'true' : 'false');
       n.dataset.id = row.id;
-      n.innerHTML = '<span class="tl-time">' + esc(row.timestamp) + '</span><div><kbd>' + esc(row.method) + '</kbd> <small>' + esc(row.status_code) + '</small></div><div class="tl-url">' + esc(row.url) + '</div>';
+      n.innerHTML = '<span class="tl-time">' + esc(row.timestamp) + '</span><div class="tl-meta"><kbd>' + esc(row.method) + '</kbd> <small>' + esc(row.status_code) + '</small></div><div class="tl-url">' + esc(row.url) + '</div>';
       n.onclick = function () { selectRow(row.id); };
       el.appendChild(n);
     });
@@ -285,34 +394,34 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
   async function loadDetail(id) {
     document.getElementById('detailEmpty').classList.add('hidden');
     document.getElementById('detailBody').classList.remove('hidden');
-    document.getElementById('detailMeta').textContent = 'Loading…';
-    document.getElementById('detailReq').textContent = '—';
-    document.getElementById('detailRes').textContent = '—';
+    setCodeBlock(document.getElementById('detailMeta'), 'Loading…');
+    setCodeBlock(document.getElementById('detailReq'), '—');
+    setCodeBlock(document.getElementById('detailRes'), '—');
     var r = await fetch(apiHref('api/request/' + encodeURIComponent(id)), { headers: authHeaders() });
     if (r.status === 401) {
       sessionStorage.removeItem(STORAGE);
       if (requiresLogin) { showLogin(); return; }
     }
     if (!r.ok) {
-      document.getElementById('detailMeta').textContent = 'Error ' + r.status;
+      setCodeBlock(document.getElementById('detailMeta'), 'Error ' + r.status);
       return;
     }
     var j = await r.json();
     var row = j.row || {};
-    document.getElementById('detailMeta').textContent = JSON.stringify(row, null, 2);
+    setCodeBlock(document.getElementById('detailMeta'), JSON.stringify(row, null, 2));
     if (row.request_blob_url) {
       var reqT = await fetchBlobProxy(id, 'request');
       if (reqT === null) return;
-      document.getElementById('detailReq').textContent = reqT;
+      setCodeBlock(document.getElementById('detailReq'), reqT);
     } else {
-      document.getElementById('detailReq').textContent = '(no request blob)';
+      setCodeBlock(document.getElementById('detailReq'), '(no request blob)');
     }
     if (row.response_blob_url) {
       var resT = await fetchBlobProxy(id, 'response');
       if (resT === null) return;
-      document.getElementById('detailRes').textContent = resT;
+      setCodeBlock(document.getElementById('detailRes'), resT);
     } else {
-      document.getElementById('detailRes').textContent = '(no response blob)';
+      setCodeBlock(document.getElementById('detailRes'), '(no response blob)');
     }
   }
 

@@ -66,6 +66,11 @@ export interface SdkConfig {
     headers: boolean;
     body: boolean;
     maxBodySize: number;
+    /**
+     * Do not enqueue logs for requests whose path (no query) equals or is under these prefixes.
+     * Use this to skip traffic served by the SDK itself (e.g. activity UI at `/request-logs`).
+     */
+    excludePathPrefixes: string[];
   };
   /** Optional user/customer ids stored on each log row */
   captureContext?: CaptureContextOptions;
