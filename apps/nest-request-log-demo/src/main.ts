@@ -14,6 +14,7 @@ import {
   getSdkPostgresContext,
   isRequestLoggingSdkActive,
 } from '@catrn-sdk/request-logging-sdk';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { resolvePostgresConnectionString } from './postgres-connection-from-env';
 
@@ -142,8 +143,20 @@ async function bootstrap(): Promise<void> {
   }
 
   const port = parseInt(process.env.PORT || '3000', 10);
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('nest-request-log-demo')
+    .setDescription(
+      'Demo HTTP surface used with @catrn-sdk/request-logging-sdk (health, CRUD-ish routes, error samples).',
+    )
+    .setVersion('0.0.1')
+    .addServer(`http://localhost:${port}`, 'Local')
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api-docs', app, swaggerDocument);
+
   await app.listen(port);
   console.log(`nest-request-log-demo http://localhost:${port}`);
+  console.log(`OpenAPI / Swagger UI http://localhost:${port}/api-docs`);
   if (pgCtx?.activityLogsUiEnabled) {
     console.log(
       `activity logs UI http://localhost:${port}${ACTIVITY_LOGS_UI_MOUNT}`,
