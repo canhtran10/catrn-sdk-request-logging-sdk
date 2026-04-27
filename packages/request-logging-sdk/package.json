@@ -1,6 +1,6 @@
 {
   "name": "@catrn-sdk/request-logging-sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "In-process Express request logging: optional Redis queue, PostgreSQL, Azure Blob",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
