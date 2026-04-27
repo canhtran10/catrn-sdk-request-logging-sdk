@@ -4,6 +4,21 @@
   "description": "In-process Express request logging: optional Redis queue, PostgreSQL, Azure Blob",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/canhtran10/catrn-sdk-request-logging-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/canhtran10/catrn-sdk-request-logging-sdk/issues"
+  },
+  "homepage": "https://github.com/canhtran10/catrn-sdk-request-logging-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json --incremental false",
     "test": "node --test dist/**/*.test.js 2>nul || echo \"add tests\""
