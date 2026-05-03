@@ -18,6 +18,8 @@ import {
   initSDK,
   captureMiddleware,
   createActivityLogsRouter,
+  captureThirdPartyEvent,
+  capturePostgresQueryEvent,
 } from '@catrn-sdk/request-logging-sdk';
 
 await initSDK({
@@ -49,6 +51,14 @@ await initSDK({
     maxBodySize: 65536,
     // default skips /request-logs; set [] to log SDK UI traffic, or ['/my-mount'] if you mount the router elsewhere
     // excludePathPrefixes: ['/request-logs'],
+    thirdParty: {
+      enabled: true,
+    },
+    db: {
+      postgres: {
+        enabled: true,
+      },
+    },
   },
 });
 
@@ -58,6 +68,25 @@ app.use(captureMiddleware());
 
 // Optional: simple HTML + JSON viewer (enable activityLogsUi; protect in production)
 app.use('/request-logs', createActivityLogsRouter());
+
+// Optional manual events for outbound integrations and DB queries
+captureThirdPartyEvent({
+  provider: 'twilio',
+  channel: 'sms',
+  target: '+849xxxxxxx',
+  method: 'POST',
+  statusCode: 202,
+  durationMs: 180,
+  responseBody: { sid: 'SMxxx' },
+});
+
+capturePostgresQueryEvent({
+  operation: 'SELECT',
+  target: 'users',
+  queryText: 'select id,email from users where id = $1',
+  statusCode: 200,
+  durationMs: 12,
+});
 ```
 
 ## Environment variables (optional overrides)
@@ -78,6 +107,13 @@ app.use('/request-logs', createActivityLogsRouter());
 | `REQUEST_LOG_CAPTURE_BODY` | `true`/`false` |
 | `REQUEST_LOG_MAX_BODY` | Max captured body bytes |
 | `REQUEST_LOG_EXCLUDE_PATH_PREFIXES` | Comma-separated path prefixes **not** logged (no query string match). **Unset** → default **`/request-logs`**. Set to **empty** to disable excludes. Example: `/request-logs,/internal/health`. |
+| `REQUEST_LOG_CAPTURE_THIRD_PARTY_ENABLED` | `true` to accept `captureThirdPartyEvent(...)` |
+| `REQUEST_LOG_CAPTURE_THIRD_PARTY_REQUEST_BODY` | Capture third-party request body |
+| `REQUEST_LOG_CAPTURE_THIRD_PARTY_RESPONSE_BODY` | Capture third-party response body |
+| `REQUEST_LOG_CAPTURE_THIRD_PARTY_MAX_BODY` | Max third-party request/response body bytes |
+| `REQUEST_LOG_CAPTURE_DB_POSTGRES_ENABLED` | `true` to accept `capturePostgresQueryEvent(...)` |
+| `REQUEST_LOG_CAPTURE_DB_POSTGRES_QUERY_TEXT` | Capture SQL text payload on DB events |
+| `REQUEST_LOG_CAPTURE_DB_POSTGRES_MAX_QUERY` | Max SQL text bytes |
 | `REQUEST_LOG_QUEUE_MAX` | In-memory queue cap (drop oldest) |
 | `REQUEST_LOG_DB_RETRIES` | Insert retries |
 | `REQUEST_LOG_ERROR_THROTTLE_MS` | Throttle identical error logs |
@@ -131,6 +167,15 @@ Public blob URLs (no SAS) are stored in `requests.request_blob_url` / `response_
 - **Queue full** (memory): **drop oldest** then push.
 - **Blob upload** failure: DB row still inserted; URLs may stay null.
 - **`shutdownSDK()`** for tests or graceful shutdown.
+
+## Manual DB / third-party capture APIs
+
+This SDK now supports explicit event capture for integrations that happen outside inbound Express requests:
+
+- `captureThirdPartyEvent(...)` for outbound API/SMS/email style calls
+- `capturePostgresQueryEvent(...)` for PostgreSQL query events
+
+Both APIs are no-op unless their corresponding capture toggles are enabled. Events are stored in the same requests table with `event_type` values (`third_party`, `db_query`) and optional metadata columns (`channel`, `provider`, `db_system`, `operation`, `target`, `meta`).
 
 ## Nest vs Express
 

@@ -34,6 +34,11 @@ function envInt(key: string, def: number): number {
   return Number.isFinite(n) ? n : def;
 }
 
+function envPositiveInt(key: string, def: number): number {
+  const n = envInt(key, def);
+  return n > 0 ? n : def;
+}
+
 /**
  * @param raw - Comma-separated path prefixes (may be empty string to mean "none")
  */
@@ -100,6 +105,31 @@ export function loadConfig(init?: SdkInitInput): SdkConfig {
       body: envBool('REQUEST_LOG_CAPTURE_BODY', true),
       maxBodySize: envInt('REQUEST_LOG_MAX_BODY', 65536),
       excludePathPrefixes: defaultExcludePathPrefixesFromEnv(),
+      thirdParty: {
+        enabled: envBool('REQUEST_LOG_CAPTURE_THIRD_PARTY_ENABLED', false),
+        captureRequestBody: envBool(
+          'REQUEST_LOG_CAPTURE_THIRD_PARTY_REQUEST_BODY',
+          true,
+        ),
+        captureResponseBody: envBool(
+          'REQUEST_LOG_CAPTURE_THIRD_PARTY_RESPONSE_BODY',
+          true,
+        ),
+        maxBodySize: envPositiveInt('REQUEST_LOG_CAPTURE_THIRD_PARTY_MAX_BODY', 8192),
+      },
+      db: {
+        postgres: {
+          enabled: envBool('REQUEST_LOG_CAPTURE_DB_POSTGRES_ENABLED', false),
+          captureQueryText: envBool(
+            'REQUEST_LOG_CAPTURE_DB_POSTGRES_QUERY_TEXT',
+            true,
+          ),
+          maxQuerySize: envPositiveInt(
+            'REQUEST_LOG_CAPTURE_DB_POSTGRES_MAX_QUERY',
+            4096,
+          ),
+        },
+      },
     },
     captureContext: buildCaptureContextFromEnv(),
     maskFields: ['password', 'token', 'authorization', 'cookie'],
@@ -166,6 +196,33 @@ export function loadConfig(init?: SdkInitInput): SdkConfig {
         init.capture?.excludePathPrefixes !== undefined
           ? [...init.capture.excludePathPrefixes]
           : defaults.capture.excludePathPrefixes,
+      thirdParty: {
+        enabled:
+          init.capture?.thirdParty?.enabled ??
+          defaults.capture.thirdParty.enabled,
+        captureRequestBody:
+          init.capture?.thirdParty?.captureRequestBody ??
+          defaults.capture.thirdParty.captureRequestBody,
+        captureResponseBody:
+          init.capture?.thirdParty?.captureResponseBody ??
+          defaults.capture.thirdParty.captureResponseBody,
+        maxBodySize:
+          init.capture?.thirdParty?.maxBodySize ??
+          defaults.capture.thirdParty.maxBodySize,
+      },
+      db: {
+        postgres: {
+          enabled:
+            init.capture?.db?.postgres?.enabled ??
+            defaults.capture.db.postgres.enabled,
+          captureQueryText:
+            init.capture?.db?.postgres?.captureQueryText ??
+            defaults.capture.db.postgres.captureQueryText,
+          maxQuerySize:
+            init.capture?.db?.postgres?.maxQuerySize ??
+            defaults.capture.db.postgres.maxQuerySize,
+        },
+      },
     },
     captureContext: mergeCaptureContext(
       defaults.captureContext,
@@ -207,6 +264,12 @@ export function validateConfig(c: SdkConfig, init?: SdkInitInput): string | null
   }
   if (c.redis.enabled && !c.redis.url) {
     return 'redis.url is required when redis.enabled is true';
+  }
+  if (c.capture.thirdParty.maxBodySize <= 0) {
+    return 'capture.thirdParty.maxBodySize must be > 0';
+  }
+  if (c.capture.db.postgres.maxQuerySize <= 0) {
+    return 'capture.db.postgres.maxQuerySize must be > 0';
   }
   const uiUser = c.activityLogsUi.username?.trim() ?? '';
   const uiPass = c.activityLogsUi.password ?? '';

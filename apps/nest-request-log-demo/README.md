@@ -72,6 +72,28 @@ npm run start -w nest-request-log-demo
 - `POST http://localhost:3000/echo` with JSON body `{ "a": 1 }`
 - Open **`http://localhost:3000/request-logs`** — sign in if UI auth is configured, then browse captured requests.
 
+### Capture ON/OFF examples (DB + third-party)
+
+The demo enables `REQUEST_LOG_CAPTURE_THIRD_PARTY_ENABLED=true` and
+`REQUEST_LOG_CAPTURE_DB_POSTGRES_ENABLED=true` by default in `.env.example`.
+It also excludes `/examples/no-capture` by default, so those routes execute but do not show in activity logs.
+
+```bash
+# ON: inbound + db_query event
+curl "http://localhost:3000/examples/captured/db-query"
+
+# OFF: same DB behavior, route excluded from captureMiddleware
+curl "http://localhost:3000/examples/no-capture/db-query"
+
+# ON: inbound + third_party event
+curl "http://localhost:3000/examples/captured/third-party"
+
+# OFF: same third-party behavior, route excluded from captureMiddleware
+curl "http://localhost:3000/examples/no-capture/third-party"
+```
+
+Then open `http://localhost:3000/request-logs` and filter `eventType=third_party` or `eventType=db_query` on `/api/list` if needed.
+
 If `initSDK` fails (missing DB URL, migration error, etc.), the demo **exits**; check `[request-logging-sdk]` lines in the console.
 
 **Postgres SSL (discrete `POSTGRES_*` vars):** unset `POSTGRES_SSLMODE` → `sslmode=disable` for `localhost` / `127.0.0.1` / `::1`, and `require` for other hosts (e.g. Azure). Use `POSTGRES_SSLMODE=false` or `off` to force no SSL; use `require` / `verify-full` for managed cloud. **`PG_CONNECTION` / `DATABASE_URL`:** put the full URI (with the right `sslmode`) yourself — no merging with `POSTGRES_SSLMODE`.

@@ -239,6 +239,10 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
             <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailReq" class="language-json">—</code></pre></div>
             <h4>Response body (blob)</h4>
             <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailRes" class="language-json">—</code></pre></div>
+            <h4>DB queries (children)</h4>
+            <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailDbQueries" class="language-json">—</code></pre></div>
+            <h4>Third-party calls (children)</h4>
+            <div class="detail-pre-wrap detail-blob-pre"><pre><code id="detailThirdParty" class="language-json">—</code></pre></div>
           </div>
         </article>
       </div>
@@ -391,12 +395,50 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
     return await br.text();
   }
 
+  /** Parse blob proxy text when it is JSON; otherwise return plain string. */
+  function tryParseBlobText(text) {
+    if (text == null) return null;
+    var t = String(text).trim();
+    if (!t) return null;
+    if (t.charAt(0) === '{' || t.charAt(0) === '[') {
+      try { return JSON.parse(t); } catch (e) { /* fall through */ }
+    }
+    return t;
+  }
+
+  /**
+   * @param rows - db_query or third_party rows from API (include id + blob URLs)
+   * @returns Enriched rows with blob.request / blob.response (parsed when JSON), or null on auth redirect
+   */
+  async function enrichRelatedRowsWithBlobs(rows) {
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var item = Object.assign({}, row);
+      item.blob = { request: null, response: null };
+      if (row.request_blob_url) {
+        var reqT = await fetchBlobProxy(String(row.id), 'request');
+        if (reqT === null) return null;
+        item.blob.request = tryParseBlobText(reqT);
+      }
+      if (row.response_blob_url) {
+        var resT = await fetchBlobProxy(String(row.id), 'response');
+        if (resT === null) return null;
+        item.blob.response = tryParseBlobText(resT);
+      }
+      out.push(item);
+    }
+    return out;
+  }
+
   async function loadDetail(id) {
     document.getElementById('detailEmpty').classList.add('hidden');
     document.getElementById('detailBody').classList.remove('hidden');
     setCodeBlock(document.getElementById('detailMeta'), 'Loading…');
     setCodeBlock(document.getElementById('detailReq'), '—');
     setCodeBlock(document.getElementById('detailRes'), '—');
+    setCodeBlock(document.getElementById('detailDbQueries'), '—');
+    setCodeBlock(document.getElementById('detailThirdParty'), '—');
     var r = await fetch(apiHref('api/request/' + encodeURIComponent(id)), { headers: authHeaders() });
     if (r.status === 401) {
       sessionStorage.removeItem(STORAGE);
@@ -408,6 +450,7 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
     }
     var j = await r.json();
     var row = j.row || {};
+    var related = j.related || {};
     setCodeBlock(document.getElementById('detailMeta'), JSON.stringify(row, null, 2));
     if (row.request_blob_url) {
       var reqT = await fetchBlobProxy(id, 'request');
@@ -423,6 +466,18 @@ export function activityLogsHtmlPage(requiresLogin: boolean): string {
     } else {
       setCodeBlock(document.getElementById('detailRes'), '(no response blob)');
     }
+    var dbEnriched = await enrichRelatedRowsWithBlobs(related.dbQueries || []);
+    if (dbEnriched === null) return;
+    var tpEnriched = await enrichRelatedRowsWithBlobs(related.thirdParty || []);
+    if (tpEnriched === null) return;
+    setCodeBlock(
+      document.getElementById('detailDbQueries'),
+      JSON.stringify(dbEnriched, null, 2)
+    );
+    setCodeBlock(
+      document.getElementById('detailThirdParty'),
+      JSON.stringify(tpEnriched, null, 2)
+    );
   }
 
   async function load() {

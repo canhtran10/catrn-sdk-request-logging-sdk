@@ -37,6 +37,12 @@ export function getRequestsUserIndexName(tablePrefix: string | undefined): strin
   return `idx_${getRequestsTableName(tablePrefix)}_project_user_time`;
 }
 
+export function getRequestsEventTypeIndexName(
+  tablePrefix: string | undefined,
+): string {
+  return `idx_${getRequestsTableName(tablePrefix)}_project_event_time`;
+}
+
 /**
  * DDL for the requests log table and its index (for migrations / tooling).
  * @param tablePrefix - Optional prefix; same rules as {@link getRequestsTableName}
@@ -49,6 +55,7 @@ export function getRequestsTableDdl(tablePrefix: string | undefined): string {
   return `
 CREATE TABLE IF NOT EXISTS ${table} (
   id UUID PRIMARY KEY,
+  request_action_id UUID NULL,
   project_id TEXT NOT NULL,
   user_id TEXT NULL,
   customer_id TEXT NULL,
@@ -57,6 +64,13 @@ CREATE TABLE IF NOT EXISTS ${table} (
   status_code INT,
   duration_ms INT NOT NULL,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+  event_type TEXT NOT NULL DEFAULT 'http_inbound',
+  channel TEXT NULL,
+  provider TEXT NULL,
+  db_system TEXT NULL,
+  operation TEXT NULL,
+  target TEXT NULL,
+  meta JSONB NULL,
   request_blob_url TEXT NULL,
   response_blob_url TEXT NULL
 );

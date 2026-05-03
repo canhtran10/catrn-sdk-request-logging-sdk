@@ -2,9 +2,13 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
 import { enqueueCapture, getSdkConfig } from '../core/init-sdk';
 import type { CaptureJob } from '../types/capture-job';
-import { isCapturePathExcluded } from '../utils/capture-path-filter';
+import {
+  isCapturePathExcluded,
+  isLikelyStaticAssetPath,
+} from '../utils/capture-path-filter';
 import { maskObject, safeStringify } from '../utils/mask';
 import { resolveCaptureContext } from './resolve-capture-context';
+import { runWithRequestActionContext } from '../core/request-action-context';
 
 const WRAPPED = Symbol('requestLoggingWrapped');
 
@@ -23,7 +27,10 @@ export function captureMiddleware(): RequestHandler {
       }
 
       const reqPath = req.originalUrl || req.url || '';
-      if (isCapturePathExcluded(reqPath, cfg.capture.excludePathPrefixes)) {
+      if (
+        isCapturePathExcluded(reqPath, cfg.capture.excludePathPrefixes) ||
+        isLikelyStaticAssetPath(reqPath)
+      ) {
         next();
         return;
       }
@@ -132,6 +139,7 @@ export function captureMiddleware(): RequestHandler {
           const ctxFields = resolveCaptureContext(req, cfg);
           const job: CaptureJob = {
             requestId,
+            requestActionId: requestId,
             projectId: cfg.projectId,
             userId: ctxFields.userId ?? undefined,
             customerId: ctxFields.customerId ?? undefined,
@@ -145,6 +153,9 @@ export function captureMiddleware(): RequestHandler {
             responseBody: cfg.capture.body ? responseBody : undefined,
             requestBodyTruncated,
             responseBodyTruncated: responseTruncated || undefined,
+            eventType: 'http_inbound',
+            channel: 'http',
+            target: url,
           };
           enqueueCapture(job);
         } catch (e) {
@@ -154,7 +165,7 @@ export function captureMiddleware(): RequestHandler {
 
       res.once('finish', onFinish);
       res.once('close', onFinish);
-      next();
+      runWithRequestActionContext({ requestActionId: requestId }, () => next());
     } catch (e) {
       console.error('[request-logging-sdk] captureMiddleware error', e);
       next();

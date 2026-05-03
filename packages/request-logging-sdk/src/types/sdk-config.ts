@@ -25,6 +25,19 @@ export interface CaptureContextOptions {
   fromRequest?: (req: Request) => CaptureContextFields;
 }
 
+export interface ThirdPartyCaptureConfig {
+  enabled: boolean;
+  captureRequestBody: boolean;
+  captureResponseBody: boolean;
+  maxBodySize: number;
+}
+
+export interface PostgresQueryCaptureConfig {
+  enabled: boolean;
+  captureQueryText: boolean;
+  maxQuerySize: number;
+}
+
 /**
  * Resolved SDK configuration (env + initSDK overrides).
  */
@@ -71,6 +84,10 @@ export interface SdkConfig {
      * Use this to skip traffic served by the SDK itself (e.g. activity UI at `/request-logs`).
      */
     excludePathPrefixes: string[];
+    thirdParty: ThirdPartyCaptureConfig;
+    db: {
+      postgres: PostgresQueryCaptureConfig;
+    };
   };
   /** Optional user/customer ids stored on each log row */
   captureContext?: CaptureContextOptions;
@@ -89,7 +106,14 @@ export type SdkInitInput = Partial<{
   postgres: Partial<SdkConfig['postgres']>;
   azureBlob: Partial<SdkConfig['azureBlob']>;
   redis: Partial<SdkConfig['redis']>;
-  capture: Partial<SdkConfig['capture']>;
+  capture: Partial<
+    Omit<SdkConfig['capture'], 'thirdParty' | 'db'> & {
+      thirdParty: Partial<ThirdPartyCaptureConfig>;
+      db: {
+        postgres: Partial<PostgresQueryCaptureConfig>;
+      };
+    }
+  >;
   captureContext?: CaptureContextOptions;
   activityLogsUi: Partial<SdkConfig['activityLogsUi']>;
   maskFields: string[];

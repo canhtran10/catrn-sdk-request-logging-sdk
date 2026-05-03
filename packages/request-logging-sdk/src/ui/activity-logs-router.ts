@@ -144,6 +144,10 @@ export function createActivityLogsRouter(
     const userId = String(req.query.userId || '').trim() || undefined;
     const customerId = String(req.query.customerId || '').trim() || undefined;
     const method = String(req.query.method || '').trim().toUpperCase() || undefined;
+    const eventType = String(req.query.eventType || '').trim() || undefined;
+    const channel = String(req.query.channel || '').trim() || undefined;
+    const provider = String(req.query.provider || '').trim() || undefined;
+    const dbSystem = String(req.query.dbSystem || '').trim() || undefined;
     const scRaw = String(req.query.statusCode || '').trim();
     let statusCode: number | undefined;
     if (scRaw !== '') {
@@ -163,6 +167,10 @@ export function createActivityLogsRouter(
         userId,
         customerId,
         method,
+        eventType,
+        channel,
+        provider,
+        dbSystem,
         statusCode,
         sort,
         limit,
@@ -220,6 +228,7 @@ export function createActivityLogsRouter(
     }
     const filters = parsed.filters;
     filters.projectId = ctx.projectId;
+    filters.eventType = 'http_inbound';
 
     const repo = new RequestsRepository(ctx.pool, ctx.requestsTable);
     try {
@@ -347,6 +356,14 @@ export function createActivityLogsRouter(
         res.status(404).json({ error: 'not_found' });
         return;
       }
+      const requestActionId =
+        (row.request_action_id as string | null | undefined) || (row.id as string);
+      const relatedRows = await repo.listRelatedForRequestAction(
+        ctx.projectId,
+        requestActionId,
+      );
+      const dbQueries = relatedRows.filter((x) => x.event_type === 'db_query');
+      const thirdParty = relatedRows.filter((x) => x.event_type === 'third_party');
       const sas: { request: string | null; response: string | null } = {
         request: null,
         response: null,
@@ -375,7 +392,14 @@ export function createActivityLogsRouter(
           );
         }
       }
-      res.json({ row, sas });
+      res.json({
+        row,
+        sas,
+        related: {
+          dbQueries,
+          thirdParty,
+        },
+      });
     } catch (e) {
       console.error('[request-logging-sdk] activity detail failed', e);
       res.status(500).json({ error: 'detail_failed' });

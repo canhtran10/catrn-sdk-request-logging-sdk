@@ -53,7 +53,7 @@ function parseExcludePathPrefixes(): string[] {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
   }
-  return [ACTIVITY_LOGS_UI_MOUNT];
+  return [ACTIVITY_LOGS_UI_MOUNT, '/examples/no-capture'];
 }
 
 function parseMaskFields(): string[] {
@@ -100,6 +100,28 @@ async function bootstrap(): Promise<void> {
       body: envBool('REQUEST_LOG_CAPTURE_BODY', true),
       maxBodySize: envInt('REQUEST_LOG_MAX_BODY', 65536),
       excludePathPrefixes: parseExcludePathPrefixes(),
+      thirdParty: {
+        enabled: envBool('REQUEST_LOG_CAPTURE_THIRD_PARTY_ENABLED', true),
+        captureRequestBody: envBool(
+          'REQUEST_LOG_CAPTURE_THIRD_PARTY_REQUEST_BODY',
+          true,
+        ),
+        captureResponseBody: envBool(
+          'REQUEST_LOG_CAPTURE_THIRD_PARTY_RESPONSE_BODY',
+          true,
+        ),
+        maxBodySize: envInt('REQUEST_LOG_CAPTURE_THIRD_PARTY_MAX_BODY', 8192),
+      },
+      db: {
+        postgres: {
+          enabled: envBool('REQUEST_LOG_CAPTURE_DB_POSTGRES_ENABLED', true),
+          captureQueryText: envBool(
+            'REQUEST_LOG_CAPTURE_DB_POSTGRES_QUERY_TEXT',
+            true,
+          ),
+          maxQuerySize: envInt('REQUEST_LOG_CAPTURE_DB_POSTGRES_MAX_QUERY', 4096),
+        },
+      },
     },
     captureContext: {
       userIdHeader:

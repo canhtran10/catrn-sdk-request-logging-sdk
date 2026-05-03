@@ -11,6 +11,10 @@ export interface ActivityListFilters {
   customerId?: string;
   method?: string;
   statusCode?: number;
+  eventType?: string;
+  channel?: string;
+  provider?: string;
+  dbSystem?: string;
   sort: 'asc' | 'desc';
   limit: number;
   offset: number;

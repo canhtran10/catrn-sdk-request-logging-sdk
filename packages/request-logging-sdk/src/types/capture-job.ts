@@ -3,6 +3,7 @@
  */
 export interface CaptureJob {
   requestId: string;
+  requestActionId?: string;
   projectId: string;
   /** Optional, from {@link SdkConfig.captureContext} */
   userId?: string | null;
@@ -18,4 +19,11 @@ export interface CaptureJob {
   responseBody?: unknown;
   requestBodyTruncated?: boolean;
   responseBodyTruncated?: boolean;
+  eventType?: 'http_inbound' | 'third_party' | 'db_query';
+  channel?: 'http' | 'email' | 'sms' | 'api' | 'db';
+  provider?: string;
+  dbSystem?: 'postgres';
+  operation?: string;
+  target?: string;
+  meta?: Record<string, unknown>;
 }

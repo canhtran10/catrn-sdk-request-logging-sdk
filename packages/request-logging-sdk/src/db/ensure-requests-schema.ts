@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import {
   getRequestsTableDdl,
+  getRequestsEventTypeIndexName,
   getRequestsTableName,
 } from '../utils/requests-table-name';
 
@@ -35,5 +36,31 @@ export async function ensureRequestsSchema(
   );
   await pool.query(
     `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS customer_id TEXT NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS request_action_id UUID NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT 'http_inbound'`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS channel TEXT NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS provider TEXT NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS db_system TEXT NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS operation TEXT NULL`,
+  );
+  await pool.query(
+    `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS target TEXT NULL`,
+  );
+  await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS meta JSONB NULL`);
+  const eventIdx = getRequestsEventTypeIndexName(tablePrefix);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS ${eventIdx} ON ${table} (project_id, event_type, timestamp DESC)`,
   );
 }

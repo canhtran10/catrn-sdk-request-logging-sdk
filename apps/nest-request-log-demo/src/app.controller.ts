@@ -29,10 +29,92 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import {
+  capturePostgresQueryEvent,
+  captureThirdPartyEvent,
+  getSdkPostgresContext,
+} from '@catrn-sdk/request-logging-sdk';
 
 @ApiTags('nest-request-log-demo')
 @Controller()
 export class AppController {
+  private async runSamplePostgresQuery(
+    source: 'captured' | 'no-capture',
+  ): Promise<{
+    source: string;
+    ok: boolean;
+    dbTime: string;
+    elapsedMs: number;
+    dbEventId: string | null;
+  }> {
+    const ctx = getSdkPostgresContext();
+    if (!ctx) {
+      throw new InternalServerErrorException('SDK postgres context unavailable');
+    }
+    const start = Date.now();
+    const result = await ctx.pool.query<{ db_time: string }>(
+      'select now()::text as db_time',
+    );
+    const elapsedMs = Date.now() - start;
+    const dbEventId = capturePostgresQueryEvent({
+      operation: 'SELECT',
+      target: 'now()',
+      queryText: 'select now()::text as db_time',
+      statusCode: 200,
+      durationMs: elapsedMs,
+      meta: { source },
+    });
+    return {
+      source,
+      ok: true,
+      dbTime: result.rows[0]?.db_time || '',
+      elapsedMs,
+      dbEventId,
+    };
+  }
+
+  private async runSampleThirdPartyCall(
+    source: 'captured' | 'no-capture',
+  ): Promise<{
+    source: string;
+    upstreamStatus: number;
+    elapsedMs: number;
+    sample: unknown;
+  }> {
+    const target =
+      process.env.DEMO_THIRD_PARTY_URL?.trim() ||
+      'https://jsonplaceholder.typicode.com/todos/1';
+    const startedAt = Date.now();
+    const response = await fetch(target, {
+      headers: {
+        'x-demo-source': source,
+      },
+    });
+    const elapsedMs = Date.now() - startedAt;
+    let payload: unknown = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = await response.text();
+    }
+    captureThirdPartyEvent({
+      provider: 'demo-http',
+      target,
+      channel: 'api',
+      method: 'GET',
+      statusCode: response.status,
+      durationMs: elapsedMs,
+      responseBody: payload,
+      meta: { source },
+    });
+    return {
+      source,
+      upstreamStatus: response.status,
+      elapsedMs,
+      sample: payload,
+    };
+  }
+
   @ApiOperation({ summary: 'Service root' })
   @ApiOkResponse({
     description: 'Health-style payload',
@@ -239,6 +321,92 @@ export class AppController {
   @Head('peek')
   peek(): void {
     /* empty 200 */
+  }
+
+  @ApiOperation({ summary: 'Example: capture ON for a Postgres query event' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        source: 'captured',
+        ok: true,
+        dbTime: '2026-05-03 14:00:00+00',
+        elapsedMs: 6,
+      },
+    },
+  })
+  @Get('examples/captured/db-query')
+  async exampleCapturedDbQuery(): Promise<{
+    source: string;
+    ok: boolean;
+    dbTime: string;
+    elapsedMs: number;
+    dbEventId: string | null;
+  }> {
+    return this.runSamplePostgresQuery('captured');
+  }
+
+  @ApiOperation({ summary: 'Example: capture OFF route for Postgres query event' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        source: 'no-capture',
+        ok: true,
+        dbTime: '2026-05-03 14:00:00+00',
+        elapsedMs: 6,
+      },
+    },
+  })
+  @Get('examples/no-capture/db-query')
+  async exampleNoCaptureDbQuery(): Promise<{
+    source: string;
+    ok: boolean;
+    dbTime: string;
+    elapsedMs: number;
+    dbEventId: string | null;
+  }> {
+    return this.runSamplePostgresQuery('no-capture');
+  }
+
+  @ApiOperation({ summary: 'Example: capture ON for third-party API call event' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        source: 'captured',
+        upstreamStatus: 200,
+        elapsedMs: 120,
+        sample: { id: 1 },
+      },
+    },
+  })
+  @Get('examples/captured/third-party')
+  async exampleCapturedThirdParty(): Promise<{
+    source: string;
+    upstreamStatus: number;
+    elapsedMs: number;
+    sample: unknown;
+  }> {
+    return this.runSampleThirdPartyCall('captured');
+  }
+
+  @ApiOperation({ summary: 'Example: capture OFF route for third-party API call event' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        source: 'no-capture',
+        upstreamStatus: 200,
+        elapsedMs: 120,
+        sample: { id: 1 },
+      },
+    },
+  })
+  @Get('examples/no-capture/third-party')
+  async exampleNoCaptureThirdParty(): Promise<{
+    source: string;
+    upstreamStatus: number;
+    elapsedMs: number;
+    sample: unknown;
+  }> {
+    return this.runSampleThirdPartyCall('no-capture');
   }
 
   @ApiOperation({ summary: 'Demo 404' })
